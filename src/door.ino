@@ -1,139 +1,148 @@
-#include <Keypad.h>
-#include <LiquidCrystal_I2C.h>
-/******************************************************************************
-*******************************************************************************/
+#include <keypad.h>
+#include <LiquidCrystal_I2C>
 
 //keypad interfacing
 const byte rows=4;
 const byte cols=4;
-
 byte rowpins[rows]={9,8,7,6};
 byte colpins[cols]={5,4,3,2};
-char keys[rows][cols] = {
+char keys[rows][cols]={
     {'1', '2', '3', 'A'},
     {'4', '5', '6', 'B'},
     {'7', '8', '9', 'C'},
     {'*', '0', '#', 'D'}
-};
-
-Keypad k = Keypad(makeKeymap(keys), rowpins, colpins, rows, cols);
-/*************************************************************************/
+}
+Keypad k= Keypad(makekeymap(keys), rowpins, colpins, rows , cols);
 
 //lcd interfacing
-LiquidCrystal_I2C lcd(0x27, 16, 2);
-/*******************************************************************************/
-
-String password ="1234546";
-String enteredPassword = "";
-const byte relay =10;
-const unsigned long BOOT_TIME=2000;
+LiquidCrystal_I2C lcd(0x27, 16,2);
 
 
+String password= "1234";
+String enteredPassword= "",
+
+const unsigned long stateStartTime=0;
+const unsigned long BOOT_TIME= 2000;
+
+const byte relay=10;
+
+const byte PASSWORD_LENGTH=5;
+
+//FSM states 
 enum State {
-    BOOT,
-    LOCKED,
-    PASSWORD_ENTRY,
-    VERIFY_PASSWORD,
-    ACCESS_GRANTED,
-    ACCESS_DENIED,
-    UNLOCKING,
-    DOOR_OPEN,
-    LOCKING
-    };
-State currentState= BOOT;
-unsigned long stateStartTime=0;
+    STATE_BOOT,
+    STATE_LOCKED,
+    STATE_PASSWORD_ENTRY,
+    STATE_VERIFY,
+    STATE_GRANTED,
+    STATE_DENIED,
+    STATE_UNLOCKING,
+    STATE_OPEN,
+    STATE_LOCKING
+}
+State currentState= STATE_BOOT;
 
-void changeState(SystemState newState)
-{
-    currentState = newState;
-    stateStartTime = millis();
+
+void displayState(){
+    lcd.clear();
+    switch (currentState){
+        case STATE_BOOT:
+            break;
+        case STATE_LOCKED:
+            break;
+        case STATE_PASSWORD_ENTRY:
+            break;
+        case STATE_VERIFY:
+            break;
+        case STATE_GRANTED:
+            break;
+        case STATE_DENIED:
+            break;
+        case STATE_UNLOCKING:
+            break;
+        case STATE_OPEN:
+            break;
+
+    }
+}
+
+
+void changeState(State newState){
+    currentState=newState;
+    stateStartTime=millis();
 
     displayState();
 }
 
-void updateFSM()
-{
-    switch(currentState)
-    {
-        case BOOT:
+void updateFSM(){
+    
+    switch (currentState){
+        case STATE_BOOT:{
+            if ((millis()- stateStartTime) >= BOOT_TIME){
+                changeState(STATE_LOCKED)
+            }}
+            break;
+        case STATE_LOCKED:{
+            
+            if (key=='#'){
+                
+                changeState(STATE_PASSWORD_ENTRY);
+                }
+            }
+        }break;
+        case STATE_PASSWORD_ENTRY:{
+            if (key){
+                if (isDigit(key) && (enteredPassword.length()<PASSWORD_LENGTH)){
+                    enteredPassword +=key;
+                    // lcd.clear();
+                    // lcd.setCursor(0,1);
+                    // lcd.print(enteredPassword);
+                    }
+                if (key=='#'){
+                    changeState(STATE_VERIFY)
 
-            if(millis() - stateStartTime >= BOOT_TIME)
-            {
-                changeState(LOCKED);
+                    }
+                if (key =='*'){
+                    enteredPassword="";
+                    lcd.setCursor(0,1);
+                    lcd.print("                   ");
+                }
+                }
+
             }
 
+        }
+            
+        case STATE_VERIFY:{
+            if (enteredPassword==password){
+                changeState(STATE_GRANTED)
+                }
+            else{
+                changeState(STATE_DENIED)
+            }
+            break;
+        case STATE_GRANTED:
+            break;
+        case STATE_DENIED:
+            break;
+        case STATE_UNLOCKING:
+            break;
+        case STATE_OPEN:
             break;
 
-        case LOCKED:
 
-            // Wait for keypad input
-            break;
-
-        case PASSWORD_ENTRY:
-            break;
-
-        case VERIFY_PASSWORD:
-            break;
-
-        case ACCESS_GRANTED:
-            break;
-
-        case.ACCESS_DENIED:
-            break;
-
-        case UNLOCKING:
-            break;
-
-        case DOOR_OPEN:
-            break;
-
-        case LOCKING:
-            break;
     }
 }
-void displayState(){
-    lcd.clear();
-    switch (currentState)
-        {case BOOT:
-            lcd.setCursor(0,0);
-            lcd.print("Door Lock");
 
-            lcd.setCursor(0,1);
-            lcd.print("Initializing");
-            break;
-
-        case LOCKED:
-            lcd.setCursor(0,0);
-            lcd.print("Door Locked");
-
-            lcd.setCursor(0,1);
-            lcd.print("Enter Password");
-            break;
-
-        default:
-            lcd.setCursor(0,0);
-            lcd.print("State:");
-
-            lcd.setCursor(0,1);
-            lcd.print(currentState);
-            break;}
-
-}
-
-void setup() {
-    Serial.begin(9600);
-    
+void setup(){
+    pinMode (relay, OUTPUT);
     lcd.init();
     lcd.backlight();
-
-    pinMode(relay,OUTPUT);
     digitalWrite(relay, LOW);
-    changeState(BOOT);
+    changeState(BOOT)   
 }
 
-void loop() {
+void(){
+    char key= k.getKey();
     updateFSM();
-
- 
-
 }
