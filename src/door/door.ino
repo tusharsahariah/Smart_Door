@@ -394,5 +394,3 @@ void loop(){
     key= k.getKey();
     updateFSM();
 }
-
-
