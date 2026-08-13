@@ -2,13 +2,15 @@
 
 ## Overview
 
-The **IoT Smart Door Lock System** is an ESP32-based embedded security project designed to provide secure password-based access control with real-time remote notifications. The system combines **embedded systems**, **IoT**, and **Finite State Machine (FSM)** concepts to build a reliable and scalable smart door locking solution.
+The **IoT Smart Door Lock System** is an ESP32-based embedded security project that combines **password-based access control, IoT communication, remote monitoring, and remote control**.
 
-The user initiates authentication by pressing the **#** key on a **4×4 matrix keypad** and enters a predefined password. The entered password is displayed as masked characters (`*`) on a **0.96" OLED display**. If authentication is successful, the system unlocks the door using a servo motor (currently represented by a green LED during development), while incorrect password attempts trigger visual and audible alerts.
+The system uses a **4×4 matrix keypad** for local password authentication and a **0.96" OLED display** for user feedback. The control logic is implemented using a **Finite State Machine (FSM)** architecture.
 
-The ESP32 connects to a Wi-Fi network and communicates with a **Telegram Bot**, allowing the administrator to receive instant notifications whenever important security events occur, such as successful access, incorrect password attempts, and temporary security lockouts.
+The ESP32 connects to Wi-Fi and communicates with a **Telegram Bot**, allowing the administrator to receive security notifications and remotely monitor and control the lock.
 
-The entire project is implemented using a **Finite State Machine (FSM)** architecture, making the firmware modular, maintainable, and easy to expand with future IoT and AI-based security features.
+During the current development stage, the physical servo motor is not installed. The **green LED is used as a temporary representation of the unlocked state**. The servo interface is retained in the design for future hardware integration.
+
+The project demonstrates the integration of **Embedded Systems, IoT, FSM-based control, wireless communication, and remote security management**.
 
 ---
 
@@ -20,15 +22,16 @@ The entire project is implemented using a **Finite State Machine (FSM)** archite
 - Finite State Machine (FSM) architecture
 - Password-protected access control
 - 4×4 Matrix Keypad interface
+- Five-digit password authentication
 - Password masking using `*`
+- Password reset during entry using `*`
 - 0.96" OLED display interface
 - Green LED indication for successful authentication
 - Red LED indication for failed authentication
-- Buzzer alert for unauthorized access
-- Automatic door locking after a predefined timeout
+- Buzzer alert for incorrect password attempts
 - Three-attempt security lockout
 - Temporary 30-second system lock
-- Password reset during entry using `*`
+- Automatic return to locked state
 - Non-blocking state transitions using `millis()`
   
 ---
@@ -37,10 +40,26 @@ The entire project is implemented using a **Finite State Machine (FSM)** archite
 
 - ESP32 Wi-Fi connectivity
 - Telegram Bot integration
-- Instant startup notification
-- Telegram notification on successful authentication
-- Telegram notification on incorrect password attempts
-- Telegram notification during security lockout
+- Startup notification
+- Successful authentication notification
+- Incorrect password notification
+- Security lockout notification
+- Telegram command to control the lock remotely
+- Telegram user authorization using Chat ID
+
+---
+
+## 📱 Telegram Commands
+
+The administrator can remotely interact with the smart lock using Telegram.
+
+| Command | Function |
+|---------|----------|
+| `/start` | Start the Smart Lock Bot |
+| `/help` | Display available commands |
+| `/status` | Display current lock and system status |
+| `/unlock` | Remotely unlock the door |
+| `/lock` | Remotely lock the door |
 
 ---
 
@@ -84,39 +103,15 @@ The entire project is implemented using a **Finite State Machine (FSM)** archite
 
 # ⚙️ Working Principle
 
-1. The ESP32 powers on and initializes all peripherals.
-2. The OLED displays the boot screen.
-3. The ESP32 connects to the configured Wi-Fi network.
-4. After a successful Wi-Fi connection, a startup notification is sent to the administrator through Telegram.
-5. The system enters the **LOCKED** state and prompts the user to press **#**.
-6. The user enters a five-digit password using the keypad.
-7. Each entered digit is masked using `*` on the OLED.
-8. Pressing **#** submits the entered password.
-9. The system verifies the password.
-
-### If the password is correct
-
-- Green LED turns ON.
-- Servo motor unlocks the door *(currently simulated using the Green LED)*.
-- OLED displays **Access Granted**.
-- Telegram notification is sent.
-- Door remains unlocked for the configured duration.
-- Door automatically locks again.
-
-### If the password is incorrect
-
-- Red LED turns ON.
-- Buzzer sounds.
-- Remaining attempts are displayed.
-- Telegram notification is sent.
-
-### After three consecutive incorrect attempts
-
-- System enters **Security Lock Mode**.
-- Keypad input is disabled for 30 seconds.
-- Red LED and buzzer indicate the security event.
-- Telegram security alert is sent.
-- Failed attempt counter resets after timeout.
+1.The ESP32 initializes the keypad, OLED, LEDs, buzzer, and Wi-Fi.
+2.The user presses # and enters the password using the 4×4 keypad.
+3.The password is displayed as * on the OLED and then verified.
+4.If the password is correct, the green LED turns ON and the system enters the unlock state.
+5.If the password is wrong, the red LED and buzzer are activated, and the failed-attempt count increases.
+6.After three wrong attempts, the system enters a 30-second lockout.
+7.The ESP32 sends important security events to the administrator through Telegram.
+8.The authorized administrator can also use Telegram commands such as /status, /unlock, and /lock to monitor and control the system remotely.
+9.The FSM controls all these states and automatically returns the system to the locked state after the required timeout.
 
 ---
 
@@ -135,23 +130,6 @@ The entire project is implemented using a **Finite State Machine (FSM)** archite
 
 # 🚀 Future Versions
 
-## Version 3 — Remote Control & Monitoring
-
-- Telegram Commands
-  - `/status`
-  - `/unlock`
-  - `/lock`
-  - `/restart`
-  - `/help`
-- Remote Door Unlock
-- Remote Door Lock
-- Door Status Monitoring
-- Event Logs
-- Password Change via Telegram
-- OTA Firmware Updates
-
----
-
 ## Version 4 — AI Smart Security
 
 - ESP32-CAM Integration
@@ -165,12 +143,12 @@ The entire project is implemented using a **Finite State Machine (FSM)** archite
 
 ---
 
-# 📈 Version History
+# 📈 Version Status
 
 | Version | Description | Status |
 |----------|-------------|:------:|
 | Version 1 | Arduino-based Password Door Lock | ✅ Completed |
 | Version 2 | ESP32 IoT Smart Door Lock with Telegram Notifications | ✅ Completed |
-| Version 3 | Remote Monitoring & Telegram Commands | 🚧 Planned |
+| Version 3 | Remote Monitoring & Telegram Commands | ✅ Completed|
 | Version 4 | AI Face Recognition Security | 🔜 Planned |
 
