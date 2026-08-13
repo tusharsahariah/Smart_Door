@@ -53,6 +53,8 @@ const unsigned long UNLOCK_TIME=5000;
 const unsigned long LOCKED_TIME=30000;
 const unsigned long BUZZER_TIME=5000;
 const unsigned long GREEN_LED_TIME = 2000;
+const unsigned long TELEGRAM_CHECK_INTERVAL = 1000;
+unsigned long lastTelegramCheck=0;
 
 // const byte SERVO=5;
 const byte red=19;
@@ -61,6 +63,10 @@ const byte buzzer =18;
 const byte MAX_ATTEMPTS=3;
 const byte PASSWORD_LENGTH=5;
 byte failedAttempts =0;
+int numMessage=0;
+
+bool telegramPending = false;
+String telegramMessage = "";
 
 //FSM states 
 enum State {
@@ -77,6 +83,121 @@ enum State {
 };
 State currentState= STATE_BOOT;
 
+void handleTelegramMessage(){
+    numMessage = bot.getUpdates(bot.last_message_received + 1);
+    while(numMessage){
+        for (int i = 0; i < numMessage; i++){
+            String chat_id = bot.messages[i].chat_id;
+            String text = bot.messages[i].text;
+            if (chat_id != CHAT_ID)
+            {
+                bot.sendMessage(chat_id, "❌ Unauthorized user.", "");
+                continue;
+            }
+
+            if (text == "/start")
+            {
+                String message =
+                    "🔐 Smart Lock\n\n"
+                    "Welcome!\n\n"
+                    "Available Commands:\n"
+                    "/start - Start bot\n"
+                    "/help - Show commands";
+
+                bot.sendMessage(chat_id, message, "");
+            }
+
+            else if (text == "/help")
+            {
+                String message =
+                    "🔐 Smart Lock Commands\n\n"
+                    "/start - Start bot\n"
+                    "/help - Show commands";
+
+                bot.sendMessage(chat_id, message, "");
+            }
+            else if (text=="/status"){
+                String connection;
+                String doorStatus;
+                if (currentState == STATE_ACCESS_GRANTED ||
+                    currentState == STATE_UNLOCKING ||
+                    currentState == STATE_DOOR_OPEN){
+                    doorStatus="🔓Lock OPEN";
+                }
+                else{
+                    doorStatus="🔒Lock CLOSED";
+                }
+                if (WiFi.status() == WL_CONNECTED){
+                    connection = "CONNECTED";
+                }
+                else {
+                    connection ="NOT CONNECTED";
+                }
+                String message =
+                    "🔐 SMART LOCK STATUS\n\n"
+                    "Door: " + doorStatus + "\n"
+                    "Failed Attempts: " + String(failedAttempts) + "\n"
+                    "WiFi:" + connection;
+                bot.sendMessage(CHAT_ID,message,"");
+
+            }
+            else if (text=="/unlock"){
+                if (currentState==STATE_SYSTEM_LOCKED){
+                    bot.sendMessage(CHAT_ID, "Can't unlock, system is locked","");
+                }
+                else if (currentState == STATE_ACCESS_GRANTED ||
+                    currentState == STATE_UNLOCKING ||
+                    currentState == STATE_DOOR_OPEN){
+                        bot.sendMessage(CHAT_ID, "Door already Unlocked","")
+                    }
+                else{
+                    changeState(STATE_ACCESS_GRANTED);
+                    telegramPending=false;
+                    telegramMessage="";
+                    bot.sendMessage(CHAT_ID, "Door unlocked", "")
+                }
+            }
+            else if(text=="/lock"){
+                if (currentState==STATE_SYSTEM_LOCKED){
+                    bot.sendMessage(CHAT_ID, "Can't unlock, system is locked","");
+                }
+                else if (currentState == STATE_LOCKING ||
+                    currentState == STATE_LOCKED){
+                        bot.sendMessage(CHAT_ID, "Door already locked","");
+                    }
+                else{
+                    changeState(STATE_LOCKING);
+                    telegramPending=false;
+                    telegramMessage="";
+                    bot.sendMessage(CHAT_ID, "Door locked", "")
+
+                }
+
+            }
+
+            else
+            {
+                bot.sendMessage(
+                    chat_id,
+                    "❓ Unknown command.\n\nSend /help for available commands.",
+                    ""
+                );
+            }
+
+
+        }
+        numMessage = bot.getUpdates(bot.last_message_received + 1);
+    }
+}
+
+void checkTelegram(){
+    if(millis()-lastTelegramCheck>=TELEGRAM_CHECK_INTERVAL){
+        lastTelegramCheck= millis();
+        if (WiFi.status() == WL_CONNECTED){
+            handleTelegramMessage();
+        }
+    }
+}
 void connectWifi(){
     WiFi.begin(ssid, wifipassword);
     while(WiFi.status()!= WL_CONNECTED){
@@ -209,29 +330,45 @@ void displayState(){
     }
 }
 
-void oled(){
-    switch(currentState)
+void prepareTelegramMessage()
+{
+    switch (currentState)
     {
         case STATE_ACCESS_GRANTED:
-            sendTelegram("🔓 Door Unlocked");
+            telegramMessage = "🔓 Door Unlocked";
+            telegramPending = true;
             break;
 
         case STATE_ACCESS_DENIED:
-            sendTelegram("❌ Wrong Password");
+            telegramMessage = "❌ Wrong Password";
+            telegramPending = true;
             break;
 
         case STATE_SYSTEM_LOCKED:
-            sendTelegram("🚨 System Locked");
+            telegramMessage = "🚨 System Locked";
+            telegramPending = true;
+            break;
+
+        default:
             break;
     }
+}
+void processTelegram()
+{
+    if (telegramPending && WiFi.status() == WL_CONNECTED)
+    {
+        bot.sendMessage(CHAT_ID, telegramMessage, "");
 
+        telegramPending = false;
+        telegramMessage = "";
+    }
 }
 void changeState(State newState){
     currentState=newState;
     stateStartTime=millis();
 
     displayState();
-    oled();
+    prepareTelegramMessage();
     
 }
 
@@ -329,6 +466,7 @@ void updateFSM(){
             break;
         case STATE_LOCKING:{
             // Servo_lock();
+            digitalWrite(green, LOW);
             enteredPassword="";
             changeState(STATE_LOCKED);
             }
@@ -393,4 +531,6 @@ void setup() {
 void loop(){
     key= k.getKey();
     updateFSM();
+    processTelegram();
+    checkTelegram();
 }
